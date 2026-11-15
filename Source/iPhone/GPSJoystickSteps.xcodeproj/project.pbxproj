@@ -1,0 +1,223 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* GPSJoystickStepsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* GPSJoystickStepsApp.swift */; };
+		A10000000000000000000002 /* StepReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* StepReceiver.swift */; };
+		A10000000000000000000003 /* StepBatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000013 /* StepBatch.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A10000000000000000000011 /* GPSJoystickStepsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GPSJoystickStepsApp.swift; sourceTree = "<group>"; };
+		A10000000000000000000012 /* StepReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepReceiver.swift; sourceTree = "<group>"; };
+		A10000000000000000000013 /* StepBatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StepBatch.swift; path = ../Shared/StepBatch.swift; sourceTree = "<group>"; };
+		A10000000000000000000014 /* GPSJoystickSteps.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GPSJoystickSteps.entitlements; sourceTree = "<group>"; };
+		A10000000000000000000015 /* GPSJoystickSteps.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = GPSJoystickSteps.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A10000000000000000000032 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A10000000000000000000021 = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000011 /* GPSJoystickStepsApp.swift */,
+				A10000000000000000000012 /* StepReceiver.swift */,
+				A10000000000000000000013 /* StepBatch.swift */,
+				A10000000000000000000014 /* GPSJoystickSteps.entitlements */,
+				A10000000000000000000022 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A10000000000000000000022 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000015 /* GPSJoystickSteps.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A10000000000000000000041 /* GPSJoystickSteps */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000061 /* Build configuration list for PBXNativeTarget "GPSJoystickSteps" */;
+			buildPhases = (
+				A10000000000000000000031 /* Sources */,
+				A10000000000000000000032 /* Frameworks */,
+				A10000000000000000000033 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GPSJoystickSteps;
+			productName = GPSJoystickSteps;
+			productReference = A10000000000000000000015 /* GPSJoystickSteps.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A10000000000000000000042 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					A10000000000000000000041 = {
+						CreatedOnToolsVersion = 16.0;
+						SystemCapabilities = {
+							com.apple.HealthKit = {
+								enabled = 1;
+							};
+						};
+					};
+				};
+			};
+			buildConfigurationList = A10000000000000000000062 /* Build configuration list for PBXProject "GPSJoystickSteps" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = "zh-Hant";
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				"zh-Hant",
+				Base,
+			);
+			mainGroup = A10000000000000000000021;
+			productRefGroup = A10000000000000000000022 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A10000000000000000000041 /* GPSJoystickSteps */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A10000000000000000000033 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A10000000000000000000031 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* GPSJoystickStepsApp.swift in Sources */,
+				A10000000000000000000002 /* StepReceiver.swift in Sources */,
+				A10000000000000000000003 /* StepBatch.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A10000000000000000000051 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = GPSJoystickSteps.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = ASTZ2Y627F;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "GPS 搖桿步數";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "連線至 Mac 上的 GPS 搖桿並接收模擬步數。";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "管理 GPS 搖桿步數的健康資料權限。";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "將 GPS 搖桿的模擬步數加入健康 App。";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				MARKETING_VERSION = 1.2;
+				PRODUCT_BUNDLE_IDENTIFIER = local.gpsjoystick.steps;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A10000000000000000000052 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = GPSJoystickSteps.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = ASTZ2Y627F;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "GPS 搖桿步數";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "連線至 Mac 上的 GPS 搖桿並接收模擬步數。";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "管理 GPS 搖桿步數的健康資料權限。";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "將 GPS 搖桿的模擬步數加入健康 App。";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				MARKETING_VERSION = 1.2;
+				PRODUCT_BUNDLE_IDENTIFIER = local.gpsjoystick.steps;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		A10000000000000000000053 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A10000000000000000000054 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A10000000000000000000061 /* Build configuration list for PBXNativeTarget "GPSJoystickSteps" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000051 /* Debug */,
+				A10000000000000000000052 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A10000000000000000000062 /* Build configuration list for PBXProject "GPSJoystickSteps" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000053 /* Debug */,
+				A10000000000000000000054 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A10000000000000000000042 /* Project object */;
+}
