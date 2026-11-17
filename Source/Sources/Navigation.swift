@@ -41,6 +41,16 @@ struct GeoPoint: Equatable {
         return GeoPoint(latitude: endLatitude * 180 / .pi, longitude: longitudeDegrees)
     }
 
+    func bearing(to other: GeoPoint) -> Double {
+        let startLatitude = latitude * .pi / 180
+        let endLatitude = other.latitude * .pi / 180
+        let longitudeDelta = (other.longitude - longitude) * .pi / 180
+        let east = sin(longitudeDelta) * cos(endLatitude)
+        let north = cos(startLatitude) * sin(endLatitude)
+            - sin(startLatitude) * cos(endLatitude) * cos(longitudeDelta)
+        return (atan2(east, north) * 180 / .pi + 360).truncatingRemainder(dividingBy: 360)
+    }
+
     func distance(to other: GeoPoint) -> Double {
         CLLocation(latitude: latitude, longitude: longitude)
             .distance(from: CLLocation(latitude: other.latitude, longitude: other.longitude))
@@ -93,5 +103,26 @@ struct NavigationState {
                 trail.removeFirst(200)
             }
         }
+    }
+
+    /// Moves toward `destination` and returns true once the position has reached it.
+    mutating func advance(toward destination: GeoPoint, speedKPH: Double, elapsed: Double) -> Bool {
+        let meters = speedKPH / 3.6 * elapsed
+        guard meters > 0 else { return false }
+        let remaining = position.distance(to: destination)
+        if remaining > 0.01 {
+            bearing = position.bearing(to: destination)
+        }
+        guard remaining <= meters else {
+            advance(speedKPH: speedKPH, elapsed: elapsed)
+            return false
+        }
+        // Land exactly on the destination instead of overshooting it.
+        position = destination
+        distance += remaining
+        if trail.last != destination {
+            trail.append(destination)
+        }
+        return true
     }
 }

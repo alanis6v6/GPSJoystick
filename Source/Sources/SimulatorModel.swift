@@ -26,7 +26,9 @@ final class SimulatorModel: ObservableObject {
     @Published private(set) var simulatingSteps = false
     @Published private(set) var stride = 0.75
     @Published private(set) var simulatedStepCount = 0
+    @Published private(set) var destination: GeoPoint?
     @Published var pickingStart = false
+    @Published var pickingDestination = false
     @Published var following = true
 
     let stepBroadcaster = StepBroadcaster()
@@ -121,6 +123,11 @@ final class SimulatorModel: ObservableObject {
         }
 
         guard steering, newInput.isDeflected else { return }
+        if destination != nil {
+            // Manual steering takes over from the destination.
+            tick()
+            destination = nil
+        }
         let bearing = newInput.bearing
         guard motion == .awaitingDirection || navigation.bearing != bearing else { return }
         // Account for movement in the previous direction up to this input event.
@@ -144,7 +151,12 @@ final class SimulatorModel: ObservableObject {
         }
         if motion == .moving && targetSpeed > 0 && elapsed > 0 {
             var next = navigation
-            next.advance(speedKPH: targetSpeed, elapsed: elapsed)
+            var arrived = false
+            if let destination {
+                arrived = next.advance(toward: destination, speedKPH: targetSpeed, elapsed: elapsed)
+            } else {
+                next.advance(speedKPH: targetSpeed, elapsed: elapsed)
+            }
             if simulatingSteps && targetSpeed <= 8 {
                 let batch = stepSimulation.advance(
                     meters: next.distance - navigation.distance, elapsed: elapsed, stride: stride, now: .now
@@ -159,6 +171,11 @@ final class SimulatorModel: ObservableObject {
             navigation = next
             if phase == .syncing {
                 pendingPoint = next.position
+            }
+            if arrived {
+                flushSteps()
+                destination = nil
+                motion = .paused
             }
         }
 
@@ -188,6 +205,27 @@ final class SimulatorModel: ObservableObject {
             pendingPoint = point
             flushPosition(at: ProcessInfo.processInfo.systemUptime)
         }
+    }
+
+    func setDestination(_ point: GeoPoint) {
+        guard point.isValid else { return }
+        pickingDestination = false
+        releaseControls()
+        tick()
+        guard navigation.position.distance(to: point) >= 1 else { return }
+        destination = point
+        navigation.bearing = navigation.position.bearing(to: point)
+        motion = .moving
+    }
+
+    func clearDestination() {
+        guard destination != nil else { return }
+        tick()
+        if motion == .moving {
+            flushSteps()
+            motion = .paused
+        }
+        destination = nil
     }
 
     func recenterMap() {

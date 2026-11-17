@@ -68,18 +68,23 @@ struct ControllerView: View {
                 position: model.navigation.position,
                 bearing: model.navigation.bearing,
                 trail: model.navigation.trail,
+                destination: model.destination,
                 pickingStart: model.pickingStart,
-                following: model.following && !model.pickingStart && placeSearch.preview == nil,
+                pickingDestination: model.pickingDestination,
+                following: model.following && !model.pickingStart && !model.pickingDestination
+                    && placeSearch.preview == nil,
                 focusRequest: model.mapFocusRequest,
                 zoomRequest: model.zoomRequest,
                 previewPlace: placeSearch.preview,
                 chooseStart: model.setStart,
+                chooseDestination: model.setDestination,
                 regionChanged: { placeSearch.mapRegion = $0 }
             )
 
             HStack {
                 Button {
                     closeSearch()
+                    model.pickingDestination = false
                     model.pickingStart.toggle()
                 } label: {
                     Label(model.pickingStart ? "取消選點" : "選擇起點",
@@ -87,10 +92,21 @@ struct ControllerView: View {
                 }
                 .buttonStyle(ControlButton(prominent: model.pickingStart))
                 Button {
+                    closeSearch()
+                    model.pickingStart = false
+                    model.pickingDestination.toggle()
+                } label: {
+                    Label(model.pickingDestination ? "取消選點" : "選擇目的地",
+                          systemImage: model.pickingDestination ? "xmark" : "flag")
+                }
+                .buttonStyle(ControlButton(prominent: model.pickingDestination))
+                .accessibilityIdentifier("pick-destination")
+                Button {
                     if placeSearch.isOpen {
                         closeSearch()
                     } else {
                         model.pickingStart = false
+                        model.pickingDestination = false
                         placeSearch.isOpen = true
                     }
                 } label: {
@@ -125,8 +141,8 @@ struct ControllerView: View {
                     .zIndex(1)
             }
 
-            if model.pickingStart {
-                Text("點一下地圖，將搖桿的起點移到該處")
+            if model.pickingStart || model.pickingDestination {
+                Text(model.pickingStart ? "點一下地圖，將搖桿的起點移到該處" : "點一下地圖，以設定速度直線前往該處")
                     .font(.system(size: 12, weight: .medium))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 9)
@@ -195,6 +211,14 @@ struct ControllerView: View {
                     }
                     .buttonStyle(ControlButton(prominent: true))
                     .accessibilityIdentifier("set-search-start")
+                    Button {
+                        model.setDestination(previewPlace.point)
+                        closeSearch()
+                    } label: {
+                        Label("設為目的地", systemImage: "flag")
+                    }
+                    .buttonStyle(ControlButton())
+                    .accessibilityIdentifier("set-search-destination")
                     Button("返回搜尋結果") { placeSearch.preview = nil }
                         .buttonStyle(.plain)
                         .font(.caption)
@@ -338,11 +362,39 @@ struct ControllerView: View {
                     .frame(maxWidth: .infinity)
                 motionButton
             }
-            Text("拖曳搖桿或按方向鍵，放開後持續移動")
-                .font(.system(size: 12))
-                .foregroundStyle(secondary)
-                .frame(maxWidth: .infinity)
+            if let destination = model.destination {
+                HStack(spacing: 8) {
+                    Label("前往目的地，剩 \(remainingLabel(to: destination))", systemImage: "flag.fill")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(accent)
+                        .monospacedDigit()
+                        .accessibilityIdentifier("destination-remaining")
+                    Spacer()
+                    Button("取消目的地", action: model.clearDestination)
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(secondary)
+                        .accessibilityIdentifier("clear-destination")
+                }
+                Text("抵達後自動暫停。動搖桿或按方向鍵會改回手動")
+                    .font(.system(size: 12))
+                    .foregroundStyle(secondary)
+                    .frame(maxWidth: .infinity)
+            } else {
+                Text("拖曳搖桿或按方向鍵，放開後持續移動")
+                    .font(.system(size: 12))
+                    .foregroundStyle(secondary)
+                    .frame(maxWidth: .infinity)
+            }
         }
+    }
+
+    private func remainingLabel(to destination: GeoPoint) -> String {
+        let remaining = model.navigation.position.distance(to: destination)
+        if remaining >= 1000 {
+            return String(format: "%.2f km", remaining / 1000)
+        }
+        return String(format: "%.0f m", remaining)
     }
 
     private var motionButton: some View {
