@@ -94,34 +94,47 @@ struct NavigationState {
     mutating func advance(speedKPH: Double, elapsed: Double) {
         let meters = speedKPH / 3.6 * elapsed
         guard meters > 0 else { return }
+        move(meters: meters)
+    }
+
+    private mutating func move(meters: Double) {
         position = position.moved(meters: meters, bearing: bearing)
         distance += meters
 
         if let last = trail.last, last.distance(to: position) >= 2 {
-            trail.append(position)
-            if trail.count > 1200 {
-                trail.removeFirst(200)
-            }
+            extendTrail(position)
         }
     }
 
-    /// Moves toward `destination` and returns true once the position has reached it.
-    mutating func advance(toward destination: GeoPoint, speedKPH: Double, elapsed: Double) -> Bool {
-        let meters = speedKPH / 3.6 * elapsed
-        guard meters > 0 else { return false }
-        let remaining = position.distance(to: destination)
-        if remaining > 0.01 {
-            bearing = position.bearing(to: destination)
+    private mutating func extendTrail(_ point: GeoPoint) {
+        trail.append(point)
+        if trail.count > 1200 {
+            trail.removeFirst(200)
         }
-        guard remaining <= meters else {
-            advance(speedKPH: speedKPH, elapsed: elapsed)
-            return false
-        }
-        // Land exactly on the destination instead of overshooting it.
-        position = destination
-        distance += remaining
-        if trail.last != destination {
-            trail.append(destination)
+    }
+
+    /// Moves through the waypoints in `route`, removing each one as it is reached.
+    /// Returns true once the last waypoint has been reached.
+    mutating func advance(along route: inout [GeoPoint], speedKPH: Double, elapsed: Double) -> Bool {
+        var budget = speedKPH / 3.6 * elapsed
+        guard budget > 0 else { return false }
+        while let target = route.first {
+            let remaining = position.distance(to: target)
+            if remaining > 0.01 {
+                bearing = position.bearing(to: target)
+            }
+            guard remaining <= budget else {
+                move(meters: budget)
+                return false
+            }
+            // Land exactly on the waypoint, then spend what is left of this step on the next one.
+            position = target
+            distance += remaining
+            budget -= remaining
+            if trail.last != target {
+                extendTrail(target)
+            }
+            route.removeFirst()
         }
         return true
     }

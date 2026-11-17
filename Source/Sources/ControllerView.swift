@@ -69,6 +69,7 @@ struct ControllerView: View {
                 bearing: model.navigation.bearing,
                 trail: model.navigation.trail,
                 destination: model.destination,
+                route: model.route,
                 pickingStart: model.pickingStart,
                 pickingDestination: model.pickingDestination,
                 following: model.following && !model.pickingStart && !model.pickingDestination
@@ -142,7 +143,7 @@ struct ControllerView: View {
             }
 
             if model.pickingStart || model.pickingDestination {
-                Text(model.pickingStart ? "點一下地圖，將搖桿的起點移到該處" : "點一下地圖，以設定速度直線前往該處")
+                Text(model.pickingStart ? "點一下地圖，將搖桿的起點移到該處" : "點一下地圖，以設定速度沿道路前往該處")
                     .font(.system(size: 12, weight: .medium))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 9)
@@ -362,9 +363,9 @@ struct ControllerView: View {
                     .frame(maxWidth: .infinity)
                 motionButton
             }
-            if let destination = model.destination {
+            if model.destination != nil {
                 HStack(spacing: 8) {
-                    Label("前往目的地，剩 \(remainingLabel(to: destination))", systemImage: "flag.fill")
+                    Label(model.routing ? "正在規劃路線…" : "前往目的地，剩 \(remainingLabel)", systemImage: "flag.fill")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(accent)
                         .monospacedDigit()
@@ -376,7 +377,9 @@ struct ControllerView: View {
                         .foregroundStyle(secondary)
                         .accessibilityIdentifier("clear-destination")
                 }
-                Text("抵達後自動暫停。動搖桿或按方向鍵會改回手動")
+                Text(model.routeIsStraight
+                     ? "找不到道路路線，改走直線。抵達後自動暫停"
+                     : "抵達後自動暫停。動搖桿或按方向鍵會改回手動")
                     .font(.system(size: 12))
                     .foregroundStyle(secondary)
                     .frame(maxWidth: .infinity)
@@ -389,8 +392,8 @@ struct ControllerView: View {
         }
     }
 
-    private func remainingLabel(to destination: GeoPoint) -> String {
-        let remaining = model.navigation.position.distance(to: destination)
+    private var remainingLabel: String {
+        let remaining = model.destinationRemaining
         if remaining >= 1000 {
             return String(format: "%.2f km", remaining / 1000)
         }
@@ -399,7 +402,7 @@ struct ControllerView: View {
 
     private var motionButton: some View {
         let isMoving = model.motion == .moving
-        let hasDirection = model.motion != .awaitingDirection
+        let hasDirection = model.motion != .awaitingDirection && !model.routing
 
         return Button(action: model.toggleMotion) {
             Label(isMoving ? "暫停" : "開始", systemImage: isMoving ? "pause.fill" : "play.fill")

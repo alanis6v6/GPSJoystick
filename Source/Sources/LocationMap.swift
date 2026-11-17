@@ -7,6 +7,7 @@ struct LocationMap: NSViewRepresentable {
     let bearing: Double
     let trail: [GeoPoint]
     let destination: GeoPoint?
+    let route: [GeoPoint]
     let pickingStart: Bool
     let pickingDestination: Bool
     let following: Bool
@@ -56,6 +57,9 @@ struct LocationMap: NSViewRepresentable {
         if old.trail.last != trail.last || old.trail.count != trail.count {
             coordinator.drawTrail(on: map)
         }
+        if old.route != route {
+            coordinator.drawRoute(on: map)
+        }
         if old.destination != destination {
             map.removeAnnotation(coordinator.destinationMarker)
             if let destination {
@@ -101,6 +105,7 @@ struct LocationMap: NSViewRepresentable {
         let searchMarker = MKPointAnnotation()
         let destinationMarker = MKPointAnnotation()
         var overlay: MKPolyline?
+        var routeOverlay: MKPolyline?
 
         init(_ configuration: LocationMap) {
             self.configuration = configuration
@@ -143,11 +148,31 @@ struct LocationMap: NSViewRepresentable {
             map.addOverlay(path, level: .aboveRoads)
         }
 
+        func drawRoute(on map: MKMapView) {
+            if let routeOverlay {
+                map.removeOverlay(routeOverlay)
+                self.routeOverlay = nil
+            }
+
+            guard !configuration.route.isEmpty else { return }
+            // Start from the current position so the last leg and straight-line routes are drawn too.
+            let coordinates = ([configuration.position] + configuration.route).map(\.coordinate)
+            let path = MKPolyline(coordinates: coordinates, count: coordinates.count)
+            routeOverlay = path
+            map.addOverlay(path, level: .aboveRoads)
+        }
+
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             guard let path = overlay as? MKPolyline else { return MKOverlayRenderer(overlay: overlay) }
             let renderer = MKPolylineRenderer(polyline: path)
             renderer.lineCap = .round
             renderer.lineJoin = .round
+            if path === routeOverlay {
+                renderer.lineWidth = 3
+                renderer.lineDashPattern = [2, 7]
+                renderer.strokeColor = NSColor(red: 1, green: 0.76, blue: 0.48, alpha: 0.9)
+                return renderer
+            }
             renderer.lineWidth = 3.5
             renderer.strokeColor = NSColor(red: 0.82, green: 0.95, blue: 0.40, alpha: 0.9)
             return renderer
