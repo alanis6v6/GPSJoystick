@@ -6,12 +6,16 @@ struct LocationMap: NSViewRepresentable {
     let position: GeoPoint
     let bearing: Double
     let trail: [GeoPoint]
+    let destination: GeoPoint?
+    let route: [GeoPoint]
     let pickingStart: Bool
+    let pickingDestination: Bool
     let following: Bool
     let focusRequest: Int
     let zoomRequest: Int
     let previewPlace: SearchPlace?
     let chooseStart: (GeoPoint) -> Void
+    let chooseDestination: (GeoPoint) -> Void
     let regionChanged: (MKCoordinateRegion) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -53,6 +57,16 @@ struct LocationMap: NSViewRepresentable {
         if old.trail.last != trail.last || old.trail.count != trail.count {
             coordinator.drawTrail(on: map)
         }
+        if old.route != route {
+            coordinator.drawRoute(on: map)
+        }
+        if old.destination != destination {
+            map.removeAnnotation(coordinator.destinationMarker)
+            if let destination {
+                coordinator.destinationMarker.coordinate = destination.coordinate
+                map.addAnnotation(coordinator.destinationMarker)
+            }
+        }
         if old.previewPlace != previewPlace {
             map.removeAnnotation(coordinator.searchMarker)
             if let previewPlace {
@@ -89,21 +103,29 @@ struct LocationMap: NSViewRepresentable {
         var configuration: LocationMap
         let marker = MKPointAnnotation()
         let searchMarker = MKPointAnnotation()
+        let destinationMarker = MKPointAnnotation()
         var overlay: MKPolyline?
+        var routeOverlay: MKPolyline?
 
         init(_ configuration: LocationMap) {
             self.configuration = configuration
             marker.coordinate = configuration.position.coordinate
+            destinationMarker.title = "目的地"
         }
 
         @objc func clicked(_ recognizer: NSClickGestureRecognizer) {
-            guard configuration.pickingStart, let map = recognizer.view as? MKMapView else { return }
+            guard configuration.pickingStart || configuration.pickingDestination,
+                  let map = recognizer.view as? MKMapView else { return }
             let coordinate = map.convert(recognizer.location(in: map), toCoordinateFrom: map)
-            configuration.chooseStart(GeoPoint(coordinate))
+            if configuration.pickingStart {
+                configuration.chooseStart(GeoPoint(coordinate))
+            } else {
+                configuration.chooseDestination(GeoPoint(coordinate))
+            }
         }
 
         func gestureRecognizerShouldBegin(_ gestureRecognizer: NSGestureRecognizer) -> Bool {
-            configuration.pickingStart
+            configuration.pickingStart || configuration.pickingDestination
         }
 
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
@@ -126,11 +148,31 @@ struct LocationMap: NSViewRepresentable {
             map.addOverlay(path, level: .aboveRoads)
         }
 
+        func drawRoute(on map: MKMapView) {
+            if let routeOverlay {
+                map.removeOverlay(routeOverlay)
+                self.routeOverlay = nil
+            }
+
+            guard !configuration.route.isEmpty else { return }
+            // Start from the current position so the last leg and straight-line routes are drawn too.
+            let coordinates = ([configuration.position] + configuration.route).map(\.coordinate)
+            let path = MKPolyline(coordinates: coordinates, count: coordinates.count)
+            routeOverlay = path
+            map.addOverlay(path, level: .aboveRoads)
+        }
+
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             guard let path = overlay as? MKPolyline else { return MKOverlayRenderer(overlay: overlay) }
             let renderer = MKPolylineRenderer(polyline: path)
             renderer.lineCap = .round
             renderer.lineJoin = .round
+            if path === routeOverlay {
+                renderer.lineWidth = 3
+                renderer.lineDashPattern = [2, 7]
+                renderer.strokeColor = NSColor(red: 1, green: 0.76, blue: 0.48, alpha: 0.9)
+                return renderer
+            }
             renderer.lineWidth = 3.5
             renderer.strokeColor = NSColor(red: 0.82, green: 0.95, blue: 0.40, alpha: 0.9)
             return renderer
@@ -140,6 +182,13 @@ struct LocationMap: NSViewRepresentable {
             if annotation === searchMarker {
                 let view = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: "search-place")
                 view.markerTintColor = .systemOrange
+                return view
+            }
+            if annotation === destinationMarker {
+                let view = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: "destination")
+                view.markerTintColor = .systemRed
+                view.glyphImage = NSImage(systemSymbolName: "flag.fill", accessibilityDescription: "目的地")
+                view.displayPriority = .required
                 return view
             }
             guard annotation === marker else { return nil }

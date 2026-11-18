@@ -41,6 +41,16 @@ struct GeoPoint: Equatable {
         return GeoPoint(latitude: endLatitude * 180 / .pi, longitude: longitudeDegrees)
     }
 
+    func bearing(to other: GeoPoint) -> Double {
+        let startLatitude = latitude * .pi / 180
+        let endLatitude = other.latitude * .pi / 180
+        let longitudeDelta = (other.longitude - longitude) * .pi / 180
+        let east = sin(longitudeDelta) * cos(endLatitude)
+        let north = cos(startLatitude) * sin(endLatitude)
+            - sin(startLatitude) * cos(endLatitude) * cos(longitudeDelta)
+        return (atan2(east, north) * 180 / .pi + 360).truncatingRemainder(dividingBy: 360)
+    }
+
     func distance(to other: GeoPoint) -> Double {
         CLLocation(latitude: latitude, longitude: longitude)
             .distance(from: CLLocation(latitude: other.latitude, longitude: other.longitude))
@@ -84,14 +94,48 @@ struct NavigationState {
     mutating func advance(speedKPH: Double, elapsed: Double) {
         let meters = speedKPH / 3.6 * elapsed
         guard meters > 0 else { return }
+        move(meters: meters)
+    }
+
+    private mutating func move(meters: Double) {
         position = position.moved(meters: meters, bearing: bearing)
         distance += meters
 
         if let last = trail.last, last.distance(to: position) >= 2 {
-            trail.append(position)
-            if trail.count > 1200 {
-                trail.removeFirst(200)
-            }
+            extendTrail(position)
         }
+    }
+
+    private mutating func extendTrail(_ point: GeoPoint) {
+        trail.append(point)
+        if trail.count > 1200 {
+            trail.removeFirst(200)
+        }
+    }
+
+    /// Moves through the waypoints in `route`, removing each one as it is reached.
+    /// Returns true once the last waypoint has been reached.
+    mutating func advance(along route: inout [GeoPoint], speedKPH: Double, elapsed: Double) -> Bool {
+        var budget = speedKPH / 3.6 * elapsed
+        guard budget > 0 else { return false }
+        while let target = route.first {
+            let remaining = position.distance(to: target)
+            if remaining > 0.01 {
+                bearing = position.bearing(to: target)
+            }
+            guard remaining <= budget else {
+                move(meters: budget)
+                return false
+            }
+            // Land exactly on the waypoint, then spend what is left of this step on the next one.
+            position = target
+            distance += remaining
+            budget -= remaining
+            if trail.last != target {
+                extendTrail(target)
+            }
+            route.removeFirst()
+        }
+        return true
     }
 }

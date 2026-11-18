@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import Foundation
+import MapKit
 
 enum LinkPhase: Equatable {
     case preview, connecting, ready, syncing, restoring, disconnecting, failed
@@ -26,7 +27,12 @@ final class SimulatorModel: ObservableObject {
     @Published private(set) var simulatingSteps = false
     @Published private(set) var stride = 0.75
     @Published private(set) var simulatedStepCount = 0
+    @Published private(set) var destination: GeoPoint?
+    @Published private(set) var route: [GeoPoint] = []
+    @Published private(set) var routing = false
+    @Published private(set) var routeIsStraight = false
     @Published var pickingStart = false
+    @Published var pickingDestination = false
     @Published var following = true
 
     let stepBroadcaster = StepBroadcaster()
@@ -42,6 +48,10 @@ final class SimulatorModel: ObservableObject {
     private var pendingRestoreSerial: String?
     private var quitCompletion: (@MainActor @Sendable () -> Void)?
     private var motionTimer: AnyCancellable?
+    private var directions: MKDirections?
+    private var routeRequest = 0
+    private var routeTail = 0.0
+    private var startAfterRouting = false
 
     init() {
         motionTimer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common)
@@ -49,7 +59,13 @@ final class SimulatorModel: ObservableObject {
             .sink { [weak self] _ in self?.tick() }
     }
 
-    var currentSpeed: Double { motion == .moving ? targetSpeed : 0 }
+    var currentSpeed: Double { motion == .moving && !routing ? targetSpeed : 0 }
+
+    /// Meters left to the destination along the planned route.
+    var destinationRemaining: Double {
+        guard let destination else { return 0 }
+        return navigation.position.distance(to: route.first ?? destination) + routeTail
+    }
 
     func setTargetSpeed(_ speed: Double) {
         guard speed != targetSpeed else { return }
@@ -77,7 +93,7 @@ final class SimulatorModel: ObservableObject {
     }
 
     func toggleMotion() {
-        guard motion != .awaitingDirection else { return }
+        guard motion != .awaitingDirection, !routing else { return }
         tick()
         if motion == .moving {
             flushSteps()
@@ -121,6 +137,11 @@ final class SimulatorModel: ObservableObject {
         }
 
         guard steering, newInput.isDeflected else { return }
+        if destination != nil {
+            // Manual steering takes over from the destination.
+            tick()
+            dropDestination()
+        }
         let bearing = newInput.bearing
         guard motion == .awaitingDirection || navigation.bearing != bearing else { return }
         // Account for movement in the previous direction up to this input event.
@@ -142,9 +163,19 @@ final class SimulatorModel: ObservableObject {
         if interval > 1 {
             flushSteps()
         }
-        if motion == .moving && targetSpeed > 0 && elapsed > 0 {
+        if motion == .moving && targetSpeed > 0 && elapsed > 0 && !routing {
             var next = navigation
-            next.advance(speedKPH: targetSpeed, elapsed: elapsed)
+            var arrived = false
+            if destination != nil {
+                var remainingRoute = route
+                arrived = next.advance(along: &remainingRoute, speedKPH: targetSpeed, elapsed: elapsed)
+                if remainingRoute.count != route.count {
+                    route = remainingRoute
+                    routeTail = Self.length(of: remainingRoute)
+                }
+            } else {
+                next.advance(speedKPH: targetSpeed, elapsed: elapsed)
+            }
             if simulatingSteps && targetSpeed <= 8 {
                 let batch = stepSimulation.advance(
                     meters: next.distance - navigation.distance, elapsed: elapsed, stride: stride, now: .now
@@ -159,6 +190,11 @@ final class SimulatorModel: ObservableObject {
             navigation = next
             if phase == .syncing {
                 pendingPoint = next.position
+            }
+            if arrived {
+                flushSteps()
+                dropDestination()
+                motion = .paused
             }
         }
 
@@ -184,10 +220,110 @@ final class SimulatorModel: ObservableObject {
         stepSimulation.resetStrideProgress()
         navigation.setStart(point)
         pickingStart = false
+        if destination != nil {
+            // The old route started from the previous position.
+            planRoute(startWhenReady: false)
+        }
         if phase == .syncing {
             pendingPoint = point
             flushPosition(at: ProcessInfo.processInfo.systemUptime)
         }
+    }
+
+    func setDestination(_ point: GeoPoint) {
+        guard point.isValid else { return }
+        pickingDestination = false
+        releaseControls()
+        tick()
+        guard navigation.position.distance(to: point) >= 1 else { return }
+        destination = point
+        planRoute(startWhenReady: true)
+    }
+
+    private func planRoute(startWhenReady: Bool) {
+        guard let destination else { return }
+        if motion == .moving {
+            flushSteps()
+            motion = .paused
+        }
+        directions?.cancel()
+        routeRequest += 1
+        let request = routeRequest
+        route = []
+        routeTail = 0
+        routeIsStraight = false
+        routing = true
+        startAfterRouting = startWhenReady
+
+        let query = MKDirections.Request()
+        query.source = MKMapItem(placemark: MKPlacemark(coordinate: navigation.position.coordinate))
+        query.destination = MKMapItem(placemark: MKPlacemark(coordinate: destination.coordinate))
+        query.transportType = targetSpeed > 25 ? .automobile : .walking
+        let directions = MKDirections(request: query)
+        self.directions = directions
+        directions.calculate { [weak self] response, _ in
+            var points: [GeoPoint] = []
+            if let line = response?.routes.first?.polyline {
+                let buffer = UnsafeBufferPointer(start: line.points(), count: line.pointCount)
+                points = buffer.map { GeoPoint($0.coordinate) }.filter(\.isValid)
+            }
+            Task { @MainActor [weak self] in
+                self?.finishRoute(request, points: points)
+            }
+        }
+    }
+
+    private func finishRoute(_ request: Int, points: [GeoPoint]) {
+        guard request == routeRequest, routing, let destination else { return }
+        tick()
+        directions = nil
+        routing = false
+        // Without a road route, head straight for the destination.
+        routeIsStraight = points.isEmpty
+        var path: [GeoPoint] = []
+        for point in points where path.last.map({ $0.distance(to: point) >= 0.5 }) ?? true {
+            path.append(point)
+        }
+        if path.last.map({ $0.distance(to: destination) >= 0.5 }) ?? true {
+            path.append(destination)
+        } else {
+            path[path.count - 1] = destination
+        }
+        route = path
+        routeTail = Self.length(of: path)
+        if let first = path.first, navigation.position.distance(to: first) > 0.01 {
+            navigation.bearing = navigation.position.bearing(to: first)
+        }
+        if startAfterRouting {
+            motion = .moving
+        } else if motion == .awaitingDirection {
+            motion = .paused
+        }
+    }
+
+    private func dropDestination() {
+        directions?.cancel()
+        directions = nil
+        routeRequest += 1
+        destination = nil
+        route = []
+        routeTail = 0
+        routing = false
+        routeIsStraight = false
+    }
+
+    private static func length(of path: [GeoPoint]) -> Double {
+        zip(path, path.dropFirst()).reduce(0) { $0 + $1.0.distance(to: $1.1) }
+    }
+
+    func clearDestination() {
+        guard destination != nil else { return }
+        tick()
+        if motion == .moving {
+            flushSteps()
+            motion = .paused
+        }
+        dropDestination()
     }
 
     func recenterMap() {
