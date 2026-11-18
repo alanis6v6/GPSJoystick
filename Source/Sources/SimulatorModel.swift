@@ -220,10 +220,8 @@ final class SimulatorModel: ObservableObject {
         stepSimulation.resetStrideProgress()
         navigation.setStart(point)
         pickingStart = false
-        if destination != nil {
-            // The old route started from the previous position.
-            planRoute(startWhenReady: false)
-        }
+        // A new start point clears the destination.
+        dropDestination()
         if phase == .syncing {
             pendingPoint = point
             flushPosition(at: ProcessInfo.processInfo.systemUptime)
