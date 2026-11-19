@@ -91,12 +91,14 @@ async def main():
         if not lockdown.paired:
             raise BridgeError("iPhone 尚未配對。請在 Finder 選取 iPhone，並在手機上點選「信任」。")
         info = lockdown.short_info
-        if info.get("DeviceClass") not in (None, "iPhone"):
-            raise BridgeError("請接上要測試的 iPhone。")
+        device_class = info.get("DeviceClass") or "iPhone"
+        if device_class not in ("iPhone", "iPad"):
+            raise BridgeError("請接上要測試的 iPhone 或 iPad。")
+        os_name = "iPadOS" if device_class == "iPad" else "iOS"
         version = lockdown.product_version
         if int(str(version).split(".")[0]) < 17:
-            raise BridgeError("這個原型使用 iOS 17 以上的開發者連線。")
-        label = f"{info.get('DeviceName') or 'iPhone'} · iOS {version}"
+            raise BridgeError(f"這個原型使用 {os_name} 17 以上的開發者連線。")
+        label = f"{info.get('DeviceName') or device_class} · {os_name} {version}"
 
     reader = asyncio.StreamReader()
     pipe, _ = await asyncio.get_running_loop().connect_read_pipe(
